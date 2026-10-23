@@ -1,0 +1,91 @@
+{% load static django_datastar %}<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PoC DAW</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@5.0.43/daisyui.css">
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.11/dist/index.global.js"></script>
+  <script src="{% static 'studio/engine.js' %}"></script>
+  {% datastar_csrf %}
+  <script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@1.0.4/bundles/datastar.js"></script>
+</head>
+<body class="min-h-screen bg-base-200"
+      data-signals="{cid: '{{ cid }}', userName: '{{ guest_name }}', chatText: '', playhead: 0, playing: false, selected: 0, drag: '', dropAt: 0, dropTrack: 0, _grab: 0, _scrubbing: false, region: {}}"
+      data-on:daw-tick__window="$playhead = evt.detail"
+      data-on:daw-ended__window="$playing = false"
+      data-on:pointerup__window="$_scrubbing && ($_scrubbing = false, $playing && daw.play($playhead))">
+
+  {# Collaboration: one long-lived stream per tab; the server pushes other users' changes down it. #}
+  <div data-init="@get('{% url 'events' %}', {retryMaxCount: 1000})"></div>
+  <div id="sync" hidden></div>
+
+  <div class="navbar bg-base-100 shadow gap-2 px-4">
+    <span class="text-lg font-bold mr-4">PoC DAW</span>
+    <button class="btn btn-primary btn-sm w-20"
+            data-on:click="$playing = !$playing; $playing ? daw.play($playhead) : daw.stop()"
+            data-text="$playing ? 'Stop' : 'Play'">Play</button>
+    <button class="btn btn-sm" title="Back to start"
+            data-on:click="$playhead = 0; $playing && daw.play(0)">⏮</button>
+    <span class="badge badge-neutral font-mono" data-text="$playhead.toFixed(2) + ' s'">0.00 s</span>
+    <span class="text-xs opacity-60 ml-auto">Drag clips onto tracks · drag the ruler to scrub · click a region to edit</span>
+  </div>
+
+  <main class="grid grid-cols-[16rem_minmax(0,1fr)] gap-4 p-4">
+    <aside class="space-y-4">
+      {# Uploads on file choice. Without JS it still works as a plain form post. #}
+      <form class="card bg-base-100" action="{% url 'upload' %}" method="post" enctype="multipart/form-data"
+            data-indicator="_uploading"
+            data-on:change="@post('{% url 'upload' %}', {contentType: 'form', retry: 'error', retryMaxCount: 0})"
+            data-on:submit__prevent="@post('{% url 'upload' %}', {contentType: 'form', retry: 'error', retryMaxCount: 0})"
+            data-on:datastar-fetch__document="evt.detail.el === el && (evt.detail.type === 'finished' ? el.reset() : evt.detail.type === 'retries-failed' && alert('Upload failed'))">
+        {% csrf_token %}
+        <div class="card-body p-4 gap-2">
+          <h2 class="card-title text-sm">Upload</h2>
+          <input type="file" name="file" accept="audio/*" class="file-input file-input-sm">
+          <button class="btn btn-sm">Upload <span class="loading loading-spinner loading-xs" style="display: none" data-show="$_uploading"></span></button>
+        </div>
+      </form>
+      {% include "studio/_library.html" %}
+      <div class="card bg-base-100">
+        <div class="card-body p-4 gap-2">
+          <div class="flex items-center justify-between">
+            <h2 class="card-title text-sm">Chat</h2>
+            <span id="presence" class="badge badge-sm badge-success">… online</span>
+          </div>
+          <div id="chat-log" class="flex flex-col-reverse gap-1 h-64 overflow-y-auto">
+            {% for message in chat_messages %}{% include "studio/_chat_message.html" %}{% endfor %}
+          </div>
+          <form class="join w-full" data-on:submit__prevent="$chatText.trim() && @post('{% url 'chat' %}')">
+            <input class="input input-sm join-item w-full" placeholder="Message everyone…" maxlength="500" data-bind="chatText">
+            <button class="btn btn-sm btn-primary join-item">Send</button>
+          </form>
+          <label class="input input-xs w-full">
+            <span class="opacity-60">Name</span>
+            <input maxlength="40" data-bind="userName">
+          </label>
+        </div>
+      </div>
+    </aside>
+
+    <section class="space-y-4">
+      <div class="card bg-base-100 overflow-x-auto">
+        <div class="relative" style="--pps: {{ pps }}px; width: calc({{ timeline_seconds }} * var(--pps))">
+          <div class="relative h-6 cursor-ew-resize select-none bg-base-300"
+               style="background-image: repeating-linear-gradient(to right, var(--color-base-content) 0 1px, transparent 1px var(--pps)); background-size: 100% 30%; background-repeat: no-repeat; background-position: bottom"
+               data-on:pointerdown="el.setPointerCapture(evt.pointerId); $_scrubbing = true; daw.stop(); $playhead = Math.max(0, (evt.clientX - el.getBoundingClientRect().left) / {{ pps }}); daw.scrub($playhead)"
+               data-on:pointermove="$_scrubbing && ($playhead = Math.max(0, (evt.clientX - el.getBoundingClientRect().left) / {{ pps }}), daw.scrub($playhead))">
+            {% for s in ruler_marks %}
+              <span class="absolute top-0 text-[10px] pl-1 opacity-70 pointer-events-none" style="left: calc({{ s }} * var(--pps))">{{ s }}s</span>
+            {% endfor %}
+          </div>
+          {% include "studio/_lanes.html" %}
+          <div class="absolute top-0 bottom-0 w-0.5 bg-error pointer-events-none"
+               data-style:left="$playhead * {{ pps }} + 'px'"></div>
+        </div>
+      </div>
+      {% include "studio/_inspector.html" %}
+    </section>
+  </main>
+</body>
+</html>

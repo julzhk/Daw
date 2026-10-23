@@ -1,0 +1,51 @@
+<div id="inspector" class="card bg-base-100">
+  <div class="card-body p-4">
+    {% if region %}
+      <div class="flex items-center gap-2">
+        <h2 class="card-title text-sm grow">{{ region.clip.name }}</h2>
+        <button class="btn btn-sm" data-on:click="@post('{% url 'split' region.id %}')">Split at playhead</button>
+        <button class="btn btn-sm btn-error btn-outline" data-on:click="@delete('{% url 'region' region.id %}')">Delete</button>
+      </div>
+      <div class="space-y-2" data-on:input__debounce.150ms="@post('{% url 'region' region.id %}')">
+      <div class="join" role="radiogroup" aria-label="Filter preset">
+        {% for key, preset in presets.items %}
+          <input type="radio" name="preset" value="{{ key }}" class="join-item btn btn-sm"
+                 aria-label="{{ preset.label }}" data-bind="region.preset">
+        {% endfor %}
+      </div>
+      <div class="grid grid-cols-2 xl:grid-cols-5 gap-6">
+        <fieldset class="fieldset">
+          <legend class="fieldset-legend">Region</legend>
+          <label class="label">Track</label>
+          <select class="select select-sm" data-bind="region.track">
+            {% for t in tracks %}<option value="{{ t }}">Track {{ t|add:1 }}</option>{% endfor %}
+          </select>
+          <label class="label justify-between">Start <span data-text="Number($region.start).toFixed(2) + ' s'"></span></label>
+          <input type="range" class="range range-xs" min="0" max="60" step="0.01" data-bind="region.start">
+          <label class="label justify-between">Trim in <span data-text="Number($region.offset).toFixed(2) + ' s'"></span></label>
+          <input type="range" class="range range-xs" min="0" max="{{ region.clip.duration|stringformat:'f' }}" step="0.01" data-bind="region.offset">
+          <label class="label justify-between">Length <span data-text="Number($region.length).toFixed(2) + ' s'"></span></label>
+          <input type="range" class="range range-xs" min="0.05" max="{{ region.clip.duration|stringformat:'f' }}" step="0.01" data-bind="region.length">
+        </fieldset>
+        {% for name, plugin in plugins.items %}
+          <fieldset class="fieldset">
+            <legend class="fieldset-legend">
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" class="toggle toggle-xs toggle-primary" data-bind="region.fx.{{ name }}.on">
+                {{ plugin.label }}
+              </label>
+            </legend>
+            {% for param, spec in plugin.params.items %}
+              <label class="label justify-between">{{ param }} <span data-text="$region.fx.{{ name }}.{{ param }}"></span></label>
+              <input type="range" class="range range-xs" min="{{ spec.min }}" max="{{ spec.max }}" step="{{ spec.step }}"
+                     data-bind="region.fx.{{ name }}.{{ param }}">
+            {% endfor %}
+          </fieldset>
+        {% endfor %}
+      </div>
+      </div>
+    {% else %}
+      <p class="text-sm opacity-60">Select a region to trim, split or add effects.</p>
+    {% endif %}
+  </div>
+</div>

@@ -1,0 +1,16 @@
+<div id="library" class="card bg-base-100">
+  <div class="card-body p-4 gap-2">
+    <h2 class="card-title text-sm">Clips</h2>
+    {% if error %}<div role="alert" class="alert alert-error alert-soft text-sm py-2">{{ error }}</div>{% endif %}
+    <ul class="menu p-0 w-full">
+      {% for clip in clips %}
+        <li draggable="true" data-on:dragstart="evt.dataTransfer.setData('text/plain', 'clip:{{ clip.id }}'); $_grab = 0">
+          <a class="cursor-grab justify-between"><span class="truncate">{{ clip.name }}</span>
+            <span class="badge badge-sm">{{ clip.duration|floatformat:1 }}s</span></a>
+        </li>
+      {% empty %}
+        <li class="text-sm opacity-60">Upload a clip, then drag it onto a track.</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>

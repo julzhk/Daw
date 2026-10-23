@@ -1,0 +1,10 @@
+[project]
+name = "daw"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+    "datastar-py>=1.0.3",
+    "django>=5.2,<6.1",
+    "django-datastar>=0.2.0",
+    "mutagen>=1.48.1",
+]
