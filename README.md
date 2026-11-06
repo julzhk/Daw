@@ -1,5 +1,5 @@
 # PoC DAW
-
+![](datastar-daw.jpg)
 A proof-of-concept Digital Audio Workstation, built to test whether this stack can handle
 an interactive audio app: **Django + Datastar (django-datastar, datastar-py) + Tailwind CSS + daisyUI**.
 htmx handled the upload at first. It has since been replaced by Datastar, so Datastar now does all
